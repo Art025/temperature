@@ -1,23 +1,20 @@
 #include <Arduino.h>
-#include <Ticker.h>
 
 namespace {
 constexpr uint8_t fanPin = 13;
-Ticker fanTimer;
-
-void toggleFan() {
-	digitalWrite(fanPin, !digitalRead(fanPin));
-}
+constexpr float fanOnTemperature = 28.0f;
+constexpr float fanOffTemperature = 26.0f;
+bool fanEnabled = false;
 
 void setFan(bool enabled) {
+	fanEnabled = enabled;
 	digitalWrite(fanPin, enabled ? HIGH : LOW);
 }
 
 struct FanController {
 	FanController() {
 		pinMode(fanPin, OUTPUT);
-		digitalWrite(fanPin, LOW);
-		fanTimer.attach(5.0f, toggleFan);
+		setFan(false);
 	}
 };
 
@@ -25,6 +22,13 @@ FanController fanController;
 }
 
 void setFanFromMqtt(bool enabled) {
-	fanTimer.detach();
 	setFan(enabled);
+}
+
+void setFanFromTemperature(float temperature) {
+	if (!fanEnabled && temperature >= fanOnTemperature) {
+		setFan(true);
+	} else if (fanEnabled && temperature <= fanOffTemperature) {
+		setFan(false);
+	}
 }

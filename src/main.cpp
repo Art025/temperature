@@ -17,6 +17,7 @@ PubSubClient mqttClient(wifiClient);
 bool mqttConnectionFailed = false;
 
 void setFanFromMqtt(bool enabled);
+void setFanFromTemperature(float temperature);
 
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
   String message;
@@ -105,6 +106,7 @@ void loop() {
   if (status == DHT20_OK) {
     float temperature = dht20.getTemperature();
     float humidity = dht20.getHumidity();
+    setFanFromTemperature(temperature);
 
     Serial.print("Temperature: ");
     Serial.print(temperature, 1);

@@ -1,6 +1,8 @@
 const express = require('express');
+const fs = require('fs');
 const http = require('http');
 const mqtt = require('mqtt');
+const path = require('path');
 const { Server } = require('socket.io');
 
 const app = express();
@@ -13,6 +15,43 @@ const temperatureTopic = `${teamId}/sensor/temperature`;
 const humidityTopic = `${teamId}/sensor/humidity`;
 const fanTopic = `${teamId}/fan/set`;
 const brokerUrl = process.env.MQTT_BROKER || 'mqtt://mqtt.m5stack.com';
+const historyFile = path.join(__dirname, 'data', 'sensor-history.jsonl');
+const maxHistoryRecords = 1000;
+
+function loadHistory() {
+  if (!fs.existsSync(historyFile)) {
+    return [];
+  }
+
+  return fs.readFileSync(historyFile, 'utf8')
+    .split('\n')
+    .filter(Boolean)
+    .map((line) => {
+      try {
+        return JSON.parse(line);
+      } catch (_error) {
+        return null;
+      }
+    })
+    .filter((record) => (
+      record
+      && (record.topic === temperatureTopic || record.topic === humidityTopic)
+      && Number.isFinite(record.value)
+      && typeof record.timestamp === 'string'
+    ))
+    .slice(-maxHistoryRecords);
+}
+
+function saveHistoryRecord(record) {
+  fs.mkdirSync(path.dirname(historyFile), { recursive: true });
+  fs.appendFile(historyFile, `${JSON.stringify(record)}\n`, (error) => {
+    if (error) {
+      console.error('Sensor history save error:', error);
+    }
+  });
+}
+
+const sensorHistory = loadHistory();
 
 const latest = {
   temperature: null,
@@ -56,13 +95,18 @@ app.get('/health', (_req, res) => {
     humidityTopic,
     fanTopic,
     latest,
+    historyRecords: sensorHistory.length,
   });
 });
 
+app.get('/api/history', (_req, res) => {
+  res.json(sensorHistory);
+});
+
 io.on('connection', (socket) => {
-  socket.emit('init', latest);
+  socket.emit('init', { ...latest, history: sensorHistory });
   socket.on('request-history', () => {
-    socket.emit('init', latest);
+    socket.emit('init', { ...latest, history: sensorHistory });
   });
 });
 
@@ -103,11 +147,17 @@ mqttClient.on('message', (topic, message) => {
     latest.humidity = value;
   }
 
-  io.emit('sensor-data', {
+  const sensorRecord = {
     topic,
     value,
     timestamp: new Date().toISOString(),
-  });
+  };
+  sensorHistory.push(sensorRecord);
+  if (sensorHistory.length > maxHistoryRecords) {
+    sensorHistory.shift();
+  }
+  saveHistoryRecord(sensorRecord);
+  io.emit('sensor-data', sensorRecord);
 });
 
 mqttClient.on('error', (err) => {

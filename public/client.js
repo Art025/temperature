@@ -13,7 +13,7 @@ const history = {
   humidity: [],
 };
 
-const MAX_POINTS = 30;
+const MAX_POINTS = 300;
 
 function updateFanState(state) {
   const isOn = state === 'ON';
@@ -54,12 +54,12 @@ function formatValue(value, unit) {
   return `${value.toFixed(1)} ${unit}`;
 }
 
-function pushHistory(type, value) {
+function pushHistory(type, value, time = Date.now()) {
   if (!Number.isFinite(value)) return;
 
   history[type].push({
     value,
-    time: Date.now(),
+    time,
   });
 
   if (history[type].length > MAX_POINTS) {
@@ -67,17 +67,17 @@ function pushHistory(type, value) {
   }
 }
 
-function updateDisplay(payload) {
+function updateDisplay(payload, recordHistory = true) {
   if (!payload) return;
 
   if (payload.temperature !== undefined && payload.temperature !== null) {
     temperatureValue.textContent = formatValue(payload.temperature, '°C');
-    pushHistory('temperature', payload.temperature);
+    if (recordHistory) pushHistory('temperature', payload.temperature);
   }
 
   if (payload.humidity !== undefined && payload.humidity !== null) {
     humidityValue.textContent = formatValue(payload.humidity, '%');
-    pushHistory('humidity', payload.humidity);
+    if (recordHistory) pushHistory('humidity', payload.humidity);
   }
 }
 
@@ -174,11 +174,19 @@ function renderChart() {
 }
 
 socket.on('init', (payload) => {
+  history.temperature.length = 0;
+  history.humidity.length = 0;
+  if (payload && Array.isArray(payload.history)) {
+    payload.history.forEach((record) => {
+      const type = record.topic.endsWith('/temperature') ? 'temperature' : 'humidity';
+      pushHistory(type, record.value, Date.parse(record.timestamp));
+    });
+  }
   if (payload && payload.temperature !== null) {
-    updateDisplay({ temperature: payload.temperature });
+    updateDisplay({ temperature: payload.temperature }, false);
   }
   if (payload && payload.humidity !== null) {
-    updateDisplay({ humidity: payload.humidity });
+    updateDisplay({ humidity: payload.humidity }, false);
   }
   if (payload && payload.fan) {
     updateFanState(payload.fan);
