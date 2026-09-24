@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Temperature Monitor</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>温度・湿度モニター</h1>
+        <p>チーム: TEAM_002</p>
+      </header>
+
+      <div class="cards">
+        <div class="card">
+          <span class="label">温度</span>
+          <div class="value" id="temperatureValue">--.- °C</div>
+        </div>
+        <div class="card">
+          <span class="label">湿度</span>
+          <div class="value" id="humidityValue">--.- %</div>
+        </div>
+      </div>
+
+      <div class="chart-panel">
+        <canvas id="chart" width="980" height="360"></canvas>
+      </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/client.js"></script>
+  </body>
+</html>
