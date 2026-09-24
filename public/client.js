@@ -2,6 +2,9 @@ const socket = io();
 
 const temperatureValue = document.getElementById('temperatureValue');
 const humidityValue = document.getElementById('humidityValue');
+const fanSwitch = document.getElementById('fanSwitch');
+const fanState = document.getElementById('fanState');
+const fanStatus = document.getElementById('fanStatus');
 const canvas = document.getElementById('chart');
 const ctx = canvas.getContext('2d');
 
@@ -11,6 +14,38 @@ const history = {
 };
 
 const MAX_POINTS = 30;
+
+function updateFanState(state) {
+  const isOn = state === 'ON';
+  fanSwitch.checked = isOn;
+  fanState.textContent = isOn ? 'ON' : 'OFF';
+}
+
+fanSwitch.addEventListener('change', async () => {
+  const state = fanSwitch.checked ? 'ON' : 'OFF';
+  fanSwitch.disabled = true;
+  fanStatus.textContent = '送信中...';
+
+  try {
+    const response = await fetch('/api/fan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ state }),
+    });
+
+    if (!response.ok) {
+      throw new Error('fan command failed');
+    }
+
+    updateFanState(state);
+    fanStatus.textContent = '送信完了';
+  } catch (_error) {
+    updateFanState(state === 'ON' ? 'OFF' : 'ON');
+    fanStatus.textContent = '送信失敗';
+  } finally {
+    fanSwitch.disabled = false;
+  }
+});
 
 function formatValue(value, unit) {
   if (value === null || Number.isNaN(value)) {
@@ -145,8 +180,13 @@ socket.on('init', (payload) => {
   if (payload && payload.humidity !== null) {
     updateDisplay({ humidity: payload.humidity });
   }
+  if (payload && payload.fan) {
+    updateFanState(payload.fan);
+  }
   renderChart();
 });
+
+socket.on('fan-state', updateFanState);
 
 socket.on('sensor-data', (data) => {
   const { topic, value } = data;

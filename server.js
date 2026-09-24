@@ -11,14 +11,42 @@ const port = 3000;
 const teamId = 'TEAM_002';
 const temperatureTopic = `${teamId}/sensor/temperature`;
 const humidityTopic = `${teamId}/sensor/humidity`;
+const fanTopic = `${teamId}/fan/set`;
 const brokerUrl = process.env.MQTT_BROKER || 'mqtt://mqtt.m5stack.com';
 
 const latest = {
   temperature: null,
   humidity: null,
+  fan: null,
 };
 
 app.use(express.static('public'));
+app.use(express.json());
+
+app.post('/api/fan', (req, res) => {
+  const state = typeof req.body?.state === 'string' ? req.body.state.toUpperCase() : '';
+  if (state !== 'ON' && state !== 'OFF') {
+    res.status(400).json({ error: 'state must be ON or OFF' });
+    return;
+  }
+
+  if (!mqttClient.connected) {
+    res.status(503).json({ error: 'MQTT broker is not connected' });
+    return;
+  }
+
+  mqttClient.publish(fanTopic, state, (error) => {
+    if (error) {
+      console.error('MQTT fan publish error:', error);
+      res.status(502).json({ error: 'Failed to publish fan command' });
+      return;
+    }
+
+    latest.fan = state;
+    io.emit('fan-state', state);
+    res.json({ state });
+  });
+});
 
 app.get('/health', (_req, res) => {
   res.json({
@@ -26,6 +54,7 @@ app.get('/health', (_req, res) => {
     teamId,
     temperatureTopic,
     humidityTopic,
+    fanTopic,
     latest,
   });
 });
@@ -41,16 +70,25 @@ const mqttClient = mqtt.connect(brokerUrl);
 
 mqttClient.on('connect', () => {
   console.log(`MQTT connected: ${brokerUrl}`);
-  mqttClient.subscribe([temperatureTopic, humidityTopic], (err) => {
+  mqttClient.subscribe([temperatureTopic, humidityTopic, fanTopic], (err) => {
     if (err) {
       console.error('MQTT subscribe error:', err);
     } else {
-      console.log(`Subscribed to ${temperatureTopic} and ${humidityTopic}`);
+      console.log(`Subscribed to ${temperatureTopic}, ${humidityTopic}, and ${fanTopic}`);
     }
   });
 });
 
 mqttClient.on('message', (topic, message) => {
+  if (topic === fanTopic) {
+    const state = message.toString().toUpperCase();
+    if (state === 'ON' || state === 'OFF') {
+      latest.fan = state;
+      io.emit('fan-state', state);
+    }
+    return;
+  }
+
   const value = Number(message.toString());
   if (!Number.isFinite(value)) {
     console.warn(`Invalid MQTT value on ${topic}: ${message.toString()}`);
@@ -78,5 +116,5 @@ mqttClient.on('error', (err) => {
 
 server.listen(port, '0.0.0.0', () => {
   console.log(`Express server running at http://localhost:${port}`);
-  console.log(`Listening for MQTT topic ${temperatureTopic} and ${humidityTopic}`);
+  console.log(`Listening for MQTT topics ${temperatureTopic}, ${humidityTopic}, and ${fanTopic}`);
 });

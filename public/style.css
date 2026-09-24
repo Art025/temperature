@@ -84,6 +84,63 @@ header p {
   text-overflow: ellipsis;
 }
 
+.fan-card {
+  align-items: flex-start;
+}
+
+.switch-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  font-size: 1.6rem;
+  font-weight: 800;
+}
+
+.switch-row input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.switch {
+  width: 56px;
+  height: 32px;
+  padding: 4px;
+  border-radius: 999px;
+  background: #94a3b8;
+  transition: background 0.2s ease;
+}
+
+.switch::after {
+  content: '';
+  display: block;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #ffffff;
+  transition: transform 0.2s ease;
+}
+
+.switch-row input:checked + .switch {
+  background: #16a34a;
+}
+
+.switch-row input:checked + .switch::after {
+  transform: translateX(24px);
+}
+
+.switch-row input:focus-visible + .switch {
+  outline: 3px solid rgba(14, 165, 233, 0.35);
+  outline-offset: 3px;
+}
+
+.fan-status {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
 .chart-panel {
   padding: 16px;
 }

@@ -22,6 +22,15 @@
           <span class="label">湿度</span>
           <div class="value" id="humidityValue">--.- %</div>
         </div>
+        <div class="card fan-card">
+          <span class="label">ファン</span>
+          <label class="switch-row" for="fanSwitch">
+            <span id="fanState">OFF</span>
+            <input id="fanSwitch" type="checkbox" role="switch" />
+            <span class="switch" aria-hidden="true"></span>
+          </label>
+          <p class="fan-status" id="fanStatus" aria-live="polite">待機中</p>
+        </div>
       </div>
 
       <div class="chart-panel">

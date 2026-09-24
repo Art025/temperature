@@ -16,6 +16,23 @@ WiFiClient wifiClient;
 PubSubClient mqttClient(wifiClient);
 bool mqttConnectionFailed = false;
 
+void setFanFromMqtt(bool enabled);
+
+void mqttCallback(char* topic, byte* payload, unsigned int length) {
+  String message;
+  for (unsigned int index = 0; index < length; ++index) {
+    message += static_cast<char>(payload[index]);
+  }
+  message.trim();
+  message.toUpperCase();
+
+  if (message == "ON" || message == "1") {
+    setFanFromMqtt(true);
+  } else if (message == "OFF" || message == "0") {
+    setFanFromMqtt(false);
+  }
+}
+
 void connectMqtt() {
   if (mqttClient.connected()) {
     return;
@@ -24,6 +41,8 @@ void connectMqtt() {
   Serial.print("Connecting to MQTT broker...");
   if (mqttClient.connect(TEAM_ID)) {
     mqttConnectionFailed = false;
+    String fanTopic = String(TEAM_ID) + "/fan/set";
+    mqttClient.subscribe(fanTopic.c_str());
     Serial.println(" connected");
   } else {
     mqttConnectionFailed = true;
@@ -49,6 +68,7 @@ void setup() {
   Serial.println(WiFi.localIP());
 
   mqttClient.setServer(MQTT_SERVER, 1883);
+  mqttClient.setCallback(mqttCallback);
   connectMqtt();
 
   Wire.begin(sdaPin, sclPin);
@@ -79,6 +99,7 @@ void setup() {
 
 void loop() {
   connectMqtt();
+  mqttClient.loop();
   int status = dht20.read();
 
   if (status == DHT20_OK) {
