@@ -8,10 +8,33 @@ DHT20 dht20;
 
 void setup() {
   Serial.begin(115200);
-  Wire.begin(sdaPin, sclPin);
+  delay(500);
+  Serial.println();
+  Serial.println("DHT20 test started");
 
-  if (!dht20.begin()) {
-    Serial.println("DHT20 initialization failed.");
+  Wire.begin(sdaPin, sclPin);
+  Wire.setClock(400000);
+
+  Serial.print("I2C scan: ");
+  bool found = false;
+  for (uint8_t address = 1; address < 127; ++address) {
+    Wire.beginTransmission(address);
+    if (Wire.endTransmission() == 0) {
+      Serial.print("0x");
+      Serial.print(address, HEX);
+      Serial.print(" ");
+      found = true;
+    }
+  }
+  if (!found) {
+    Serial.print("no device found");
+  }
+  Serial.println();
+
+  if (dht20.begin()) {
+    Serial.println("DHT20 initialized");
+  } else {
+    Serial.println("DHT20 initialization failed");
   }
 }
 
